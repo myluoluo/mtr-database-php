@@ -134,6 +134,14 @@ TCP argument allows you to use MTR TCP mode with specified port, `-T --tcp` for 
 php launch.php --tcp -port=443
 ```
 
+#### Category
+
+Category allows to categorize each monitor command and supports filtering from the dashboard, which also can be achieved by using the `--category` parameter:
+
+```shell
+php launch.php --category="Monitor-A1"
+```
+
 ### Purge
 
 Running `purge.php` will delete old records older than the given number of days. You can use the `-d --days` parameter to set with (default is 90 days):
