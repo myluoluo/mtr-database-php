@@ -75,12 +75,33 @@ $ tar -zxvf mtr-database-php.tar.gz
 
 ### Startup
 
-After the download, you could start to set up the `config.inc.php` with your database connection, and run `install.php` which will help you to install the database & table:
+#### Database Setup
+
+After the download, you could start to set up the `config.inc.php` with your database connection:
+
+```php
+...
+    'database' => [
+        'host' => '',
+        'driver'    => 'mysql',
+        'database'  => 'mtr_database',
+        'username'  => '',
+        'password'  => '',
+        'table' => 'records',
+        'charset'   => 'utf8',
+        'collation' => 'utf8_unicode_ci',
+    ],
+...
+```
+
+Then run `install.php` which will help you to install the database & table:
 
 ```shell
 $ php install.php
 Installation completed
 ```
+
+#### Agent Launch
 
 After the installation, enjoy to run or set `launch.php` with your prefered arguments in crontab:
 
