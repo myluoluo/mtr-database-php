@@ -10,6 +10,7 @@ OUTLINE
 -------
 
 - [Demonstration](#demonstration)
+- [Introduction](#introduction)
 - [Requirements](#requirements)
 - [Installation](#installation)
     - [Download](#download) 
@@ -26,6 +27,13 @@ DEMONSTRATION
 -------------
 
 <img src="https://raw.githubusercontent.com/yidas/mtr-database-php/main/img/demo-dashboard-overview.png" height="260" /><img src="https://raw.githubusercontent.com/yidas/mtr-database-php/main/img/demo-dashboard-table-details.png" height="260" />
+
+---
+
+INTRODUCTION
+------------
+
+![Basic Flow](https://www.plantuml.com/plantuml/proxy?src=https://raw.githubusercontent.com/yidas/mtr-database-php/main/img/architecture-diagram.plantuml)
 
 ---
 
