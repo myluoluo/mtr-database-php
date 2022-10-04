@@ -1,108 +1,119 @@
 <?php
+$postUrl = 'https://domains.com/postdata.php';
+$requestToken = 'token';
+$cmdPath = '/usr/bin/mtr';
+$mtrList = ['/usr/sbin/mtr', '/usr/bin/mtr', '/usr/local/sbin/mtr'];
+foreach ($mtrList as $path) {
+    $testMtr = strtolower(shell_exec($path . " -h"));
+    if(strstr($testMtr, 'usage:')) {
+        $testMtr = strtolower(shell_exec($path . " --version"));
+        if(strstr($testMtr, '0.85')) {
+            die('mtr version is too low!');
+        }
+        $cmdPath = $path;
+        // echo "mtr: $cmdPath\n";
+    }
+}
 
-// CLI only
-if (php_sapi_name() !== 'cli') 
-    die('Access Denied');
+set_time_limit(0);
 
-define('VERSION', "1.0.0");
-
-// Class load
-require __DIR__. '/src/GetOpt.php';
-
-// Config file
-$config = require __DIR__ . '/config.inc.php';
-$dbConfig = & $config['database'];
-$mtrConfig = & $config['mtr'];
-$config = $config['general'];
+if(!function_exists("shell_exec")) die("shell_exec disable!");
 
 // Timezone setting
 date_default_timezone_set($config['timezone']);
 
-/**
- * Options definition
- */
-$shortopts  = "";
-$shortopts .= "h:";
-$shortopts .= "m::";
-$shortopts .= "p::";
-$shortopts .= "c::";
-$shortopts .= "T";
-$shortopts .= "P::";
-$shortopts .= "v";
-// Long options
-$longopts  = array(
-    "category::",
-    "host:",
-    "mtr-arg::",
-    "period::",
-    "report-cycles::",
-    "tcp",
-    "port::",
-    "debug",
-    "help",
-    "version",
-);
+define('VERSION', "1.0.0");
 
-// GetOpt
-$getOpt = new GetOpt($shortopts, $longopts);
-// var_dump($getOpt->getOptions());exit;
+function fetch ($url, $postdata = null) {
+    global $API;
+    global $proxy, $enableProxy;
+    $ch = curl_init ();
+    if($enableProxy) {
+        curl_setopt ($ch, CURLOPT_PROXY, $proxy);
+    }
+    curl_setopt ($ch, CURLOPT_URL, $API . $url);
+    if (!is_null ($postdata)) {
+        curl_setopt ($ch, CURLOPT_POSTFIELDS, http_build_query ($postdata));
+    }
+    curl_setopt ($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt ($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt ($ch, CURLOPT_HEADER, false);
+    curl_setopt ($ch, CURLOPT_TIMEOUT, 20);
+
+    $response = [
+        'url'           => $API . $url,
+        'postData'      => $postdata,
+        'body'          => curl_exec   ($ch),
+        'curlErrorCode' => curl_errno  ($ch),
+        'statusCode'    => curl_getinfo($ch , CURLINFO_HTTP_CODE),
+    ];
+    curl_close ($ch);
+    
+    if($response['statusCode'] != 200) {
+        print_r($response);
+        // fwrite(STDOUT, '执行失败，是否重试？(yes/no, def: yes): ');
+        // $retry = trim(fgets(STDIN));
+        // if(empty($retry) || strtolower($retry) == 'yes' || strtolower($retry) == 'y') {
+        //     return fetch($url, $postdata);
+        // }
+        throw new Exception("HTTP CODE: " . $response['statusCode']);
+    }
+    
+    if(!$response['body'] || !strstr($response['body'], 'add!')) {
+        print_r($response);
+        throw new Exception('not response!');
+    }
+    
+    return $response['body'];
+}
+
+if(
+    !isset($_POST['token']) ||
+    !isset($_POST['category']) ||
+    !isset($_POST['host']) ||
+    !isset($_POST['interval']) ||
+    !isset($_POST['report-cycles']) ||
+    !isset($_POST['tcp']) ||
+    !isset($_POST['tcp_port']) ||
+    !isset($_POST['hostname']) ||
+
+    $_POST['token'] != $requestToken
+) {
+    die();
+}
+
+$category = (string)$_POST['category'];
+$host = (string)$_POST['host'];
+$interval = (int)$_POST['interval'];
+if($interval < 1 || $interval > 60) $interval = 1;
+$reportCycles = (int)$_POST['report-cycles'];
+if($reportCycles < 1 || $reportCycles > 999) $reportCycles = 10;
+$hostname = (string)$_POST['hostname'];
+$tcp = (int)$_POST['tcp'];
+$tcpPort = (int)$_POST['tcp_port'];
+
+
 $mtr = [];
-$mtr['mtrArgv'] = $getOpt->get(['mtr-arg', 'm']);
-// Category
-$optTmp = $getOpt->get(['category']);
-$category = ($optTmp) ? $optTmp : $config['category'];
-// Host
-$optTmp = $getOpt->get(['host', 'h']);
-$mtr['host'] = ($optTmp) ? $optTmp : $mtrConfig['host'];
-// Period
-$optTmp = $getOpt->get(['period', 'p']);
-$mtr['period'] = ($optTmp) ? $optTmp : $mtrConfig['period'];
-// Count
-$optTmp = $getOpt->get(['report-cycles', 'c']);
-$mtr['cycles'] = ($optTmp) ? $optTmp : $mtrConfig['count'];
+$mtr['host'] = $host;
+$mtr['cycles'] = $reportCycles;
+
 // TCP
-$optTmp = $getOpt->has(['tcp', 'T']);
-$mtr['tcp-cmd'] = ($optTmp || $mtrConfig['tcp']) ? '--tcp' : '';
-// TCP port
-$optTmp = $getOpt->get(['port', 'P']);
-$mtr['port'] = ($optTmp) ? $optTmp : $mtrConfig['port'];
-$mtr['port-cmd'] = ($mtr['tcp-cmd']) ? "--port={$mtr['port']}" : '';
-// Others
-$debugMode = $getOpt->has(['debug']);
-$showHelp = $getOpt->has(['help']);
-$showVersion = $getOpt->has(['version']);
-
-if ($showHelp) {
-    
-    exit;
-}
-elseif ($showVersion) {
-    
-    exit(VERSION . "\n");
-}
-
-// Database connection
-try {
-
-    // Database connection
-    $conn = new PDO("mysql:host={$dbConfig['host']};dbname={$dbConfig['database']}", $dbConfig['username'], $dbConfig['password']);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
-
-} catch (PDOException $e) {
-    
-    die("Error!: " . $e->getMessage() . "\n");
+if($tcp == 1) {
+    $mtr['tcp-cmd'] = '--tcp';
+    $mtr['port'] = $tcpPort;
+    if($mtr['port'] < 1) $mtr['port'] = 80;
+    $mtr['port-cmd'] = "--port=" . $mtr['port'];
 }
 
 // MTR process
 $startDateTime = date("Y-m-d H:i:s");
-$interval = floor(($mtr['period'] * 60) / $mtr['cycles']);
-$cmd = "{$config['mtrCmd']} {$mtr['host']} -c {$mtr['cycles']} -i {$interval} {$mtr['tcp-cmd']} {$mtr['port-cmd']} -rb --json {$mtr['mtrArgv']}";
-// $cmd = "{$config['mtrCmd']} -rb -c 3 -i 1 --json google.com";
-if ($debugMode) {
-    echo "{$cmd}\n";exit;
-}
+
+$cmd = "{$cmdPath} {$mtr['host']} -z -c {$mtr['cycles']} {$mtr['tcp-cmd']} {$mtr['port-cmd']} -rb --json 2>&1";
+// $cmd = "{$cmdPath} -rb -c 3 -i 1 --json google.com";
+// echo $cmd;
 $output = shell_exec($cmd);
 $endDateTime = date("Y-m-d H:i:s");
+
 // echo $output;exit;
 $data = json_decode($output, true);
 // var_dump($data);exit;
@@ -112,36 +123,17 @@ if (!isset($data['report'])) {
     die("Error!: MTR output result is wrong");
 }
 
-// Get end hub
-$endHub = end($data['report']['hubs']);
-// Save to database
-$insertMap = [
-    'start_datetime' => $startDateTime,
-    'end_datetime' => $endDateTime,
-    'category' => $category,
-    'source' => $data['report']['mtr']['src'],
-    'destination' => $data['report']['mtr']['dst'],
-    'period' => $mtr['period'],
-    'host' => $endHub['host'],
-    'mtr_loss' => $endHub['Loss%'],
-    'mtr_sent' => $endHub['Snt'],
-    'mtr_avg' => $endHub['Avg'],
-    'mtr_best' => $endHub['Best'],
-    'mtr_worst' => $endHub['Wrst'],
-    'mtr_raw' => $output,
-    'command' => $cmd,
-];
-$sql = "INSERT INTO {$dbConfig['table']} (sn, start_datetime, end_datetime, period, category, source, destination, host, mtr_loss, mtr_sent, mtr_avg, mtr_best, mtr_worst, mtr_raw, command) 
-    VALUES (NULL, :start_datetime, :end_datetime, :period, :category, :source, :destination, :host, :mtr_loss, :mtr_sent, :mtr_avg, :mtr_best, :mtr_worst, :mtr_raw, :command)";
-$stmt = $conn->prepare($sql);
-foreach ($insertMap as $key => $value) {
-    $stmt->bindValue(":{$key}", $value);
-}
-$result = $stmt->execute();
-if ($result === false) {
-    // $stmt->debugDumpParams();
-    die("Error!: " . $stmt->errorInfo()[2] . "\n");
-}
-    
+echo fetch($postUrl, [
+    'output'        => $output,
+    'endDateTime'   => $endDateTime,
+    'startDateTime' => $startDateTime,
+    'category'      => $category,
+    'hostname'      => $hostname,
+    'cmd'           => $cmd,
+    'mtr'           => json_encode($mtr),
+    'interval'      => $interval
+]);
+
+echo "\n";
 exit("Process success\n");
 
