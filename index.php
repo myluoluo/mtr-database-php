@@ -408,6 +408,10 @@ function getController($dbConfig) {
                     '<td>Target Host:</td>'+
                     '<td>'+data.host+'</td>'+
                 '</tr>'+
+                '<tr>'+
+                    '<td>AS PATH:</td>'+
+                    '<td>'+data.as_path+'</td>'+
+                '</tr>'+
             '</table>';
 
             // Hubs info
