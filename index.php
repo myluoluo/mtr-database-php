@@ -182,7 +182,6 @@ function getController($dbConfig) {
       <thead>
         <tr>
           <th style="width: 20px">
-            
           </th>
           <th style="width: 8%">
             From
@@ -190,10 +189,9 @@ function getController($dbConfig) {
           <th style="width: 8%">
             To
           </th>
-          <th>
-            Period
-            (min)
-          </th>
+          <!-- <th>
+            interval
+          </th> -->
           <th>
             Cat.
           </th>
@@ -202,6 +200,9 @@ function getController($dbConfig) {
           </th>
           <th style="width: 8%">
             Destination
+          </th>
+          <th>
+            ASN
           </th>
           <th>
             Loss
@@ -347,10 +348,11 @@ function getController($dbConfig) {
                             },
                             { "data": 'start_datetime'},
                             { "data": 'end_datetime'},
-                            { "data": 'period' },
+                            // { "data": 'interval' },
                             { "data": 'category' },
                             { "data": 'source' },
                             { "data": 'destination' },
+                            { "data": 'asn' },
                             { "data": 'mtr_loss' },
                             { "data": 'mtr_sent' },
                             { "data": 'mtr_avg' },
@@ -413,6 +415,7 @@ function getController($dbConfig) {
                 '<tr>'+
                     '<td>Node</td>'+
                     '<td>Host</td>'+
+                    '<td>ASN</td>'+
                     '<td>Loss(%)</td>'+
                     '<td>Count</td>'+
                     '<td>Avg</td>'+
@@ -425,6 +428,7 @@ function getController($dbConfig) {
                 htmlHubs += '<tr>'+
                     '<td>'+ hub['count'] +'</td>'+
                     '<td>'+ hub['host'] +'</td>'+
+                    '<td>'+ hub['ASN'] +'</td>'+
                     '<td>'+ hub['Loss%'] +'</td>'+
                     '<td>'+ hub['Snt'] +'</td>'+
                     '<td>'+ hub['Avg'] +'</td>'+
