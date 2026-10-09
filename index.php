@@ -3,22 +3,31 @@
 // Config file
 $config = require __DIR__ . '/config.inc.php';
 $dbConfig = & $config['database'];
-$config = $config['dashboard'];
+$config = isset($config['dashboard']) && is_array($config['dashboard']) ? $config['dashboard'] : [];
 
-if (!$config['enable']) {
+header('Cache-Control: no-store');
+
+if (empty($config['enable'])) {
+    http_response_code(403);
     die("Dashboard is disabled");
 }
 
+// 凭据缺失时拒绝访问，避免配置为空使页面和数据接口公开。
+if (!isset($config['username'], $config['password']) ||
+    !is_string($config['username']) || !is_string($config['password']) ||
+    trim($config['username']) === '' || trim($config['password']) === '') {
+    http_response_code(503);
+    die("Dashboard authentication is not configured");
+}
+
 // HTTP Authentication
-if ($config['username']) {
+$username = isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : '';
+$password = isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : '';
 
-    $username = isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : '';
-    $password = isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : '';
-
-    if ($config['username'] != $username || $config['password'] != $password) {
-        header('WWW-Authenticate: Basic realm="Auth required"');
-        die("Access denied");
-    }
+if ($config['username'] !== $username || $config['password'] !== $password) {
+    http_response_code(401);
+    header('WWW-Authenticate: Basic realm="Auth required"');
+    die("Access denied");
 }
 
 // Route

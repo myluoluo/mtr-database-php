@@ -24,9 +24,9 @@ return [
         'collation' => 'utf8_unicode_ci',
     ],
     'dashboard' => [
-        'enable' => true,
-        'username' => '',
-        'password' => '',
+        'enable' => false,
+        'username' => (string) getenv('MTR_DASHBOARD_USERNAME'),
+        'password' => (string) getenv('MTR_DASHBOARD_PASSWORD'),
         'categories' => [''],   // Category list for selection
     ],
 ];

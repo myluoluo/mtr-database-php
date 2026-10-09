@@ -181,23 +181,32 @@ Running `purge.php` will delete old records older than the given number of days.
 
 ### Dashboard
 
-The endpoint of MTR Dashboard is `/index.php` and it's enabled by default, you could place the project in the web path such as `/var/www/html/mtr-database/index.php`.
+The endpoint of MTR Dashboard is `/index.php`. It is disabled by default. To enable it, set `dashboard.enable` to `true` in `config.inc.php` and provide both authentication credentials.
 
-For the authentication, you could easily set the username and password in `config.ini.php`:
+Set `MTR_DASHBOARD_USERNAME` and `MTR_DASHBOARD_PASSWORD` in the PHP web process environment or through your secret manager. The configuration reads these variables without storing credentials in source control:
 
 ```php
 ...
     'dashboard' => [
         'enable' => true,
-        'username' => '',
-        'password' => '',
+        'username' => (string) getenv('MTR_DASHBOARD_USERNAME'),
+        'password' => (string) getenv('MTR_DASHBOARD_PASSWORD'),
         'categories' => [''],   // Category list for selection
     ],
 ...
 ```
 
-> `categories` will enable you to query specific data by category settings or query all data with default blank values.
+Both the HTML page and `?route=get` data endpoint require HTTP Basic authentication. Disabled dashboards return HTTP 403; missing, empty or whitespace-only credentials return HTTP 503; missing or incorrect request credentials return HTTP 401 with a `WWW-Authenticate` challenge. Existing enabled installations with blank credentials must configure authentication before they can be accessed. Serve the dashboard over HTTPS.
 
+The category selector and date window only filter records; they do not provide access control. Selecting `(Category)` queries all categories, and the default date window covers the last 24 hours.
+
+Run the authentication regression tests with PHP 5.5+ (no database is required):
+
+```shell
+php tests/dashboard-auth.php
+```
+
+The tests use a temporary local HTTP server and synthetic credentials. Denied data requests use an empty database configuration to verify that authentication stops processing before any database access. They do not connect to a production database.
 
 ---
 
